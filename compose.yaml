@@ -1,0 +1,9 @@
+# Чернетка етапу 1: лише один API, без балансування.
+# Далі додамо api-2, Nginx, Redis, PostgreSQL і два workers.
+services:
+  api:
+    build: .
+    environment:
+      INSTANCE_ID: api-local
+    ports:
+      - "127.0.0.1:8000:8000"

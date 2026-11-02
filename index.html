@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image Processing Studio</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/">IPS<span>Image Processing Studio</span></a>
+    <nav aria-label="Основна навігація"><a href="#workspace" aria-current="page">Робочий простір</a></nav>
+    <p class="sidebar-note">Навчальний проєкт<br>Етап 2 · Одне зображення</p>
+  </aside>
+  <main id="workspace">
+    <header><p class="eyebrow">ВАША ЦИФРОВА МАЙСТЕРНЯ</p><h1>Простір для ваших зображень.</h1><p class="intro">Завантажуйте, перетворюйте та зберігайте. Крок за кроком будуємо студію обробки фото.</p></header>
+    <section class="connection card" aria-labelledby="connection-title">
+      <div><h2 id="connection-title">З’єднання з backend</h2><p id="connection-status" role="status" aria-live="polite">Перевіряємо з’єднання…</p><p class="instance">Сервер: <code id="instance-id">—</code></p></div>
+      <button type="button" id="check-connection">Перевірити зв’язок</button>
+    </section>
+    <form id="resize-form" class="workspace-grid" aria-busy="false">
+      <section class="card" aria-labelledby="upload-title">
+        <p class="eyebrow">01 / ЗОБРАЖЕННЯ</p><h2 id="upload-title">Почнімо з файлів</h2>
+        <div class="upload-placeholder">
+          <span aria-hidden="true" class="upload-icon">↑</span>
+          <label for="image-file">Оберіть одне зображення</label>
+          <input id="image-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required aria-describedby="file-limits file-info">
+          <p class="hint" id="file-limits">JPG, PNG або WebP · до 10 MiB · до 12 млн пікселів · сторона до 12000 px · без анімації</p>
+        </div>
+        <p class="hint" id="file-info">Файл ще не обрано.</p>
+      </section>
+      <section class="card" aria-labelledby="settings-title">
+        <p class="eyebrow">02 / НАЛАШТУВАННЯ</p><h2 id="settings-title">Обробка зображень</h2>
+        <fieldset aria-describedby="settings-note">
+          <legend>Зміна розміру · результат PNG</legend>
+          <div class="dimensions">
+            <div><label for="width">Макс. ширина, px</label><input id="width" name="width" type="number" min="1" max="4096" step="1" value="1280" required></div>
+            <div><label for="height">Макс. висота, px</label><input id="height" name="height" type="number" min="1" max="4096" step="1" value="1280" required></div>
+          </div>
+          <button type="submit" id="process-image" disabled>Обробити зображення</button>
+        </fieldset>
+        <p class="hint" id="settings-note">Від 1 до 4096 px на сторону. Фото впишеться у рамку зі збереженням пропорцій. Маленькі фото не збільшуються.</p>
+      </section>
+    </form>
+    <p id="processing-status" class="processing-status" role="status" aria-live="polite">Оберіть фото, щоб почати.</p>
+    <section id="result-panel" class="card result" aria-labelledby="result-title" hidden>
+      <div><p class="eyebrow">03 / РЕЗУЛЬТАТ</p><h2 id="result-title">Ваше зображення готове</h2><p id="result-info"></p><a id="download-result" class="download-link" download="resized-image.png">Завантажити PNG</a><p class="hint">Результат доступний у цій вкладці до наступної обробки або перезавантаження сторінки. Збережіть його на свій Mac.</p></div>
+      <img id="result-preview" alt="Результат зміни розміру зображення">
+    </section>
+    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Наступні етапи — користувачі, історія та фонова черга з прогресом і скасуванням. Головна ціль — Nginx, два API-сервери й два обчислювальні workers.</p></section>
+  </main>
+</body>
+</html>

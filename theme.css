@@ -1,0 +1,16 @@
+/* Image Processing Studio — starter theme, adapt to existing CSS architecture. */
+:root {
+  --color-navy: #131936;
+  --color-navy-elevated: #202849;
+  --color-rose-gold: #B77E72;
+  --color-coconut: #F0EEE6;
+  --color-olive: #4B5409;
+  --color-plum: #29101F;
+  --color-ivory: #FBFAF6;
+  --color-ink: #1D2336;
+  --color-muted-light: #DDDCD9;
+  --color-outline: #DAD7D0;
+  --color-error: #A73542;
+  --radius-card: 16px;
+  --radius-control: 12px;
+}
