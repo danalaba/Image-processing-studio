@@ -108,7 +108,7 @@ class ResizeTests(DatabaseTestCase):
         response = self.client.post("/api/images/resize", content=chunks())
         self.assertEqual(response.status_code, 413)
 
-    def test_two_files_rejected(self):
+    def test_unexpected_upload_field_rejected(self):
         response = self.client.post(
             "/api/images/resize",
             files=[("file", ("one.png", image_bytes())), ("extra", ("two.png", image_bytes()))],

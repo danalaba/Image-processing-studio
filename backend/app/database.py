@@ -77,3 +77,14 @@ def initialize():
                     error = 'Обробку попередньої версії було перервано.' WHERE status = 'RUNNING';
                 INSERT INTO schema_migrations(version) VALUES (2);
             """)
+        if not connection.execute("SELECT 1 FROM schema_migrations WHERE version = 3").fetchone():
+            connection.execute("""
+                ALTER TABLE jobs ADD COLUMN file_count INTEGER NOT NULL DEFAULT 1 CHECK (file_count BETWEEN 1 AND 10);
+                ALTER TABLE jobs ADD COLUMN processed_files INTEGER NOT NULL DEFAULT 0 CHECK (processed_files BETWEEN 0 AND file_count);
+                ALTER TABLE jobs ADD COLUMN result_type TEXT NOT NULL DEFAULT 'image/png' CHECK (result_type IN ('image/png','application/zip'));
+                ALTER TABLE jobs ADD COLUMN input_files BYTEA[];
+                ALTER TABLE jobs ADD COLUMN file_names TEXT[];
+                ALTER TABLE jobs ADD CONSTRAINT jobs_input_files_check CHECK (input_files IS NULL OR cardinality(input_files) = file_count);
+                UPDATE jobs SET processed_files = 1 WHERE status = 'COMPLETED';
+                INSERT INTO schema_migrations(version) VALUES (3);
+            """)

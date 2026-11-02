@@ -21,7 +21,7 @@ resize_slots = BoundedSemaphore(MAX_CONCURRENT_RESIZES)
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 
-def validate_image(data: bytes):
+def validate_image(data: bytes) -> int:
     """Reject invalid headers, formats and excessive work before queue admission."""
     if not data:
         raise HTTPException(400, "Файл порожній.")
@@ -36,6 +36,7 @@ def validate_image(data: bytes):
             if getattr(source, "n_frames", 1) != 1:
                 raise HTTPException(415, "Анімовані зображення поки не підтримуються.")
             source.verify()
+            return source.width * source.height
     except (Image.DecompressionBombError, Image.DecompressionBombWarning):
         raise HTTPException(413, "Фото перевищує ліміт у 12 млн пікселів.") from None
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError):

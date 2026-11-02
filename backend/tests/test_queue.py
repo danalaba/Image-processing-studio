@@ -106,7 +106,9 @@ class QueueTests(DatabaseTestCase):
         dispatch_pending()
         self.assertEqual(self.client.get(f"/api/jobs/{job_id}").json()["status"], "FAILED")
         with database() as connection:
-            self.assertIsNone(connection.execute("SELECT input_data FROM jobs WHERE id = %s", (job_id,)).fetchone()["input_data"])
+            row = connection.execute("SELECT input_data, input_files FROM jobs WHERE id = %s", (job_id,)).fetchone()
+            self.assertIsNone(row["input_data"])
+            self.assertIsNone(row["input_files"])
 
     def test_global_queue_limit_is_enforced(self):
         with patch("app.jobs.MAX_PENDING_JOBS", 1):

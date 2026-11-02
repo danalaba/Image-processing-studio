@@ -6,16 +6,27 @@ from fastapi import APIRouter, HTTPException, Response
 from .auth import User
 from .database import database
 from .image_service import validate_image
-from .limits import MAX_JOBS_PER_USER, MAX_ACTIVE_JOBS_PER_USER, MAX_PENDING_JOBS, MAX_OUTPUT_SIDE
+from .limits import (MAX_JOBS_PER_USER, MAX_ACTIVE_JOBS_PER_USER, MAX_PENDING_JOBS,
+                     MAX_OUTPUT_SIDE, MAX_FILES_PER_JOB, MAX_BATCH_BYTES, MAX_BATCH_PIXELS)
 from .queue import publish_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
-METADATA = "id, status, progress, stage, target_width, target_height, width, height, error, created_at, started_at, finished_at, worker_id"
+METADATA = "id, status, progress, stage, target_width, target_height, width, height, error, created_at, started_at, finished_at, worker_id, file_count, processed_files, result_type"
 ACTIVE = {"QUEUED", "RUNNING", "CANCELLING"}
 
 
-def create_job(user_id, data, width, height):
-    validate_image(data)
+def create_job(user_id, data, width, height, filenames=None):
+    files = [data] if isinstance(data, bytes) else list(data)
+    if not 1 <= len(files) <= MAX_FILES_PER_JOB:
+        raise HTTPException(413, "Оберіть від 1 до 10 зображень.")
+    if sum(len(item) for item in files) > MAX_BATCH_BYTES:
+        raise HTTPException(413, "Загальний розмір фото перевищує 30 MiB.")
+    filenames = [str(name).replace("\x00", "")[:200] for name in filenames] if filenames else None
+    total_pixels = 0
+    for item in files:
+        total_pixels += validate_image(item)
+        if total_pixels > MAX_BATCH_PIXELS:
+            raise HTTPException(413, "Пакет перевищує загальний ліміт у 48 млн пікселів.")
     if not (1 <= width <= MAX_OUTPUT_SIDE and 1 <= height <= MAX_OUTPUT_SIDE):
         raise HTTPException(422, "Рамка має бути від 1 до 4096 px на сторону.")
     job_id = uuid4()
@@ -37,9 +48,11 @@ def create_job(user_id, data, width, height):
         if pending >= MAX_PENDING_JOBS:
             raise HTTPException(503, "Черга заповнена. Спробуйте пізніше.", headers={"Retry-After": "10"})
         job = connection.execute(f"""
-            INSERT INTO jobs(id, user_id, status, stage, input_data, target_width, target_height)
-            VALUES (%s, %s, 'QUEUED', 'queued', %s, %s, %s) RETURNING {METADATA}
-        """, (job_id, user_id, data, width, height)).fetchone()
+            INSERT INTO jobs(id, user_id, status, stage, input_files, file_names, file_count,
+                             result_type, target_width, target_height)
+            VALUES (%s, %s, 'QUEUED', 'queued', %s, %s, %s, %s, %s, %s) RETURNING {METADATA}
+        """, (job_id, user_id, files, filenames, len(files),
+              "application/zip" if len(files) > 1 else "image/png", width, height)).fetchone()
     if publish_job(job_id):
         with database() as connection:
             connection.execute("UPDATE jobs SET dispatched_at = now() WHERE id = %s AND status = 'QUEUED'", (job_id,))
@@ -73,13 +86,15 @@ def detail(job_id: UUID, user: User, response: Response):
 @router.get("/{job_id}/result")
 def download(job_id: UUID, user: User):
     with database() as connection:
-        job = owned_job(connection, user["id"], job_id, "status, result, width, height")
+        job = owned_job(connection, user["id"], job_id, "status, result, width, height, result_type")
     if job["status"] != "COMPLETED":
         raise HTTPException(409, "Результат ще недоступний.")
-    return Response(content=bytes(job["result"]), media_type="image/png", headers={
-        "Cache-Control": "no-store", "Content-Disposition": 'attachment; filename="resized-image.png"',
-        "X-Image-Width": str(job["width"]), "X-Image-Height": str(job["height"]),
-    })
+    archive = job["result_type"] == "application/zip"
+    headers = {"Cache-Control": "no-store", "Content-Disposition":
+               'attachment; filename="resized-images.zip"' if archive else 'attachment; filename="resized-image.png"'}
+    if not archive:
+        headers.update({"X-Image-Width": str(job["width"]), "X-Image-Height": str(job["height"])})
+    return Response(content=bytes(job["result"]), media_type=job["result_type"], headers=headers)
 
 
 @router.delete("/{job_id}", status_code=204)
@@ -100,7 +115,7 @@ def cancel(job_id: UUID, user: User):
         if job["status"] == "QUEUED":
             connection.execute("""
                 UPDATE jobs SET status = 'CANCELLED', stage = 'cancelled',
-                    input_data = NULL, finished_at = now() WHERE id = %s
+                    input_data = NULL, input_files = NULL, finished_at = now() WHERE id = %s
             """, (job_id,))
         elif job["status"] == "RUNNING":
             connection.execute("UPDATE jobs SET status = 'CANCELLING', stage = 'cancelling' WHERE id = %s", (job_id,))

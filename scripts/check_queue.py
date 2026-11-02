@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 import secrets
 import time
+from zipfile import ZipFile
 
 import httpx
 from PIL import Image
@@ -17,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--require-two-workers", action="store_true")
+    parser.add_argument("--batch", action="store_true", help="Submit two images per job and verify ZIP results")
     args = parser.parse_args()
     with httpx.Client(base_url=args.url, timeout=20, trust_env=False) as client:
         client.get("/api/health").raise_for_status()
@@ -30,7 +32,8 @@ def main():
         with Image.effect_noise((3000, 3000), 70) as image:
             image.save(source, format="JPEG", quality=80)
         def submit(_):
-            result = client.post("/api/jobs", files={"file": ("check.jpg", source.getvalue(), "image/jpeg")},
+            uploads = [("file", (f"check-{index + 1}.jpg", source.getvalue(), "image/jpeg")) for index in range(2 if args.batch else 1)]
+            result = client.post("/api/jobs", files=uploads,
                                  data={"width": 2000, "height": 2000})
             assert result.status_code == 202, result.text
             job = result.json()
@@ -53,13 +56,23 @@ def main():
                 time.sleep(.2)
             assert job["status"] == "COMPLETED", job
             assert job["progress"] == 100 and job["worker_id"]
+            assert job["processed_files"] == job["file_count"] == (2 if args.batch else 1)
             workers.add(job["worker_id"])
             result = client.get(f"/api/jobs/{job_id}/result")
             result.raise_for_status()
-            with Image.open(BytesIO(result.content)) as image:
-                image.load()
-                assert image.format == "PNG" and image.size == (2000, 2000)
-            print(f"job={job_id} status=COMPLETED progress=100 worker={job['worker_id']}")
+            def check_png(data):
+                with Image.open(BytesIO(data)) as image:
+                    image.load()
+                    assert image.format == "PNG" and image.size == (2000, 2000)
+            if args.batch:
+                assert result.headers["content-type"] == "application/zip"
+                with ZipFile(BytesIO(result.content)) as archive:
+                    assert len(archive.namelist()) == 2 and archive.testzip() is None
+                    for name in archive.namelist():
+                        check_png(archive.read(name))
+            else:
+                check_png(result.content)
+            print(f"job={job_id} status=COMPLETED progress=100 files={job['file_count']} worker={job['worker_id']}")
             client.delete(f"/api/jobs/{job_id}").raise_for_status()
         client.post("/api/auth/logout").raise_for_status()
         assert client.get("/api/jobs").status_code == 401

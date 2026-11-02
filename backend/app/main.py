@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from .auth import User, router as auth_router
 from .database import database, initialize
 from .jobs import create_job, router as jobs_router
-from .limits import MAX_FILE_BYTES, MAX_OUTPUT_SIDE
+from .limits import MAX_FILE_BYTES, MAX_OUTPUT_SIDE, MAX_FILES_PER_JOB, MAX_BATCH_BYTES
 from .middleware import UploadBodyLimitMiddleware
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
@@ -28,7 +28,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Image Processing Studio", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Image Processing Studio", version="0.4.1", lifespan=lifespan)
 app.add_middleware(UploadBodyLimitMiddleware)
 app.include_router(auth_router)
 app.include_router(jobs_router)
@@ -78,20 +78,28 @@ def health() -> HealthResponse:
 async def resize(
     request: Request,
     user: User,
-    file: Annotated[UploadFile, File(description="Одне фото JPG, PNG або WebP до 10 MiB")],
+    file: Annotated[list[UploadFile], File(description="1–10 фото, до 10 MiB кожне й 30 MiB разом")],
     width: Annotated[int, Form(ge=1, le=MAX_OUTPUT_SIDE)],
     height: Annotated[int, Form(ge=1, le=MAX_OUTPUT_SIDE)],
 ) -> dict:
     form = await request.form()
-    # FastAPI вже розібрав форму. Не дозволяємо додаткові файли чи дублікати.
+    # Repeated 'file' fields are the batch; dimensions must still occur once.
     if set(form.keys()) != {"file", "width", "height"} or any(
-        len(form.getlist(key)) != 1 for key in form.keys()
+        len(form.getlist(key)) != 1 for key in ("width", "height")
     ):
-        raise HTTPException(422, "Надішліть рівно один файл та по одному значенню width і height.")
-    data = await file.read(MAX_FILE_BYTES + 1)
+        raise HTTPException(422, "Надішліть фото у полях file та по одному значенню width і height.")
+    if not 1 <= len(file) <= MAX_FILES_PER_JOB:
+        raise HTTPException(413, "Оберіть від 1 до 10 фото.")
+    data, total = [], 0
+    for upload in file:
+        item = await upload.read(MAX_FILE_BYTES + 1)
+        total += len(item)
+        if len(item) > MAX_FILE_BYTES or total > MAX_BATCH_BYTES:
+            raise HTTPException(413, "Максимум 10 MiB на фото та 30 MiB на весь пакет.")
+        data.append(item)
     # Validation/admission run outside the event loop; full processing is Celery-only.
     job = await run_in_threadpool(
-        create_job, user["id"], data, width, height
+        create_job, user["id"], data, width, height, [upload.filename or "image" for upload in file]
     )
     return job
 

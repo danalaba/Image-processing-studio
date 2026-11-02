@@ -41,23 +41,24 @@
         <p class="eyebrow">01 / ЗОБРАЖЕННЯ</p><h2 id="upload-title">Почнімо з файлів</h2>
         <div class="upload-placeholder">
           <span aria-hidden="true" class="upload-icon">↑</span>
-          <label for="image-file">Оберіть одне зображення</label>
-          <input id="image-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required aria-describedby="file-limits file-info">
-          <p class="hint" id="file-limits">JPG, PNG або WebP · до 10 MiB · до 12 млн пікселів · сторона до 12000 px · без анімації</p>
+          <label for="image-file">Оберіть від 1 до 10 зображень</label>
+          <input id="image-file" name="file" type="file" multiple accept="image/jpeg,image/png,image/webp" required aria-describedby="file-limits file-info">
+          <p class="hint" id="file-limits">JPG, PNG або WebP · до 10 MiB на фото, до 30 MiB разом · до 12 млн пікселів на фото та 48 млн у пакеті · сторона до 12000 px · без анімації</p>
+          <p class="hint">На Mac утримуйте ⌘ під час вибору кількох файлів або Shift для діапазону.</p>
         </div>
         <p class="hint" id="file-info">Файл ще не обрано.</p>
       </section>
       <section class="card" aria-labelledby="settings-title">
         <p class="eyebrow">02 / НАЛАШТУВАННЯ</p><h2 id="settings-title">Обробка зображень</h2>
         <fieldset aria-describedby="settings-note">
-          <legend>Зміна розміру · результат PNG</legend>
+          <legend>Зміна розміру · одне фото — PNG, кілька — ZIP</legend>
           <div class="dimensions">
             <div><label for="width">Макс. ширина, px</label><input id="width" name="width" type="number" min="1" max="4096" step="1" value="1280" required></div>
             <div><label for="height">Макс. висота, px</label><input id="height" name="height" type="number" min="1" max="4096" step="1" value="1280" required></div>
           </div>
-          <button type="submit" id="process-image" disabled>Обробити зображення</button>
+          <button type="submit" id="process-image" disabled>Обробити фото</button>
         </fieldset>
-        <p class="hint" id="settings-note">Від 1 до 4096 px на сторону. Фото впишеться у рамку зі збереженням пропорцій. Маленькі фото не збільшуються.</p>
+        <p class="hint" id="settings-note">Від 1 до 4096 px на сторону. Одна рамка застосовується до всіх фото, пропорції зберігаються. Маленькі фото не збільшуються. PNG — до 20 MiB, ZIP — до 50 MiB.</p>
       </section>
     </form>
     <p id="processing-status" class="processing-status" role="status" aria-live="polite">Оберіть фото, щоб почати.</p>
@@ -73,12 +74,12 @@
       <img id="result-preview" alt="Результат зміни розміру зображення">
     </section>
     <section class="card history" aria-labelledby="history-title">
-      <h2 id="history-title">Моя історія</h2><p class="hint">До 20 задач, включно з невдалими. Видаліть старі задачі, щоб звільнити місце. Результат однієї задачі — до 20 MiB.</p>
+      <h2 id="history-title">Моя історія</h2><p class="hint">До 20 задач, включно з невдалими, та двох незавершених одночасно. Пакет фото займає одну задачу. PNG — до 20 MiB, ZIP — до 50 MiB.</p>
       <button id="refresh-history" type="button">Оновити історію</button>
       <p id="history-status" role="status" aria-live="polite"></p><ul id="job-list"></ul>
     </section>
     </div>
-    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Фото обробляються у фоновій черзі з прогресом і скасуванням. Наступні кроки — пакетна обробка та ZIP, потім Nginx і два API-сервери для балансування запитів.</p></section>
+    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Пакети фото обробляються у фоновій черзі з прогресом, скасуванням і ZIP-архівом результатів. Наступний крок — Nginx і два API-сервери для балансування запитів.</p></section>
   </main>
 </body>
 </html>
