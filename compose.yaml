@@ -1,9 +1,29 @@
-# Чернетка етапу 1: лише один API, без балансування.
-# Далі додамо api-2, Nginx, Redis, PostgreSQL і два workers.
+# Етап 3: один API та PostgreSQL. Черга й балансування — наступні етапи.
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_DB: studio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studio -d studio"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
   api:
     build: .
     environment:
       INSTANCE_ID: api-local
+      DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/studio
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
+volumes:
+  postgres_data:

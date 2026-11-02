@@ -12,7 +12,7 @@
   <aside class="sidebar">
     <a class="brand" href="/">IPS<span>Image Processing Studio</span></a>
     <nav aria-label="Основна навігація"><a href="#workspace" aria-current="page">Робочий простір</a></nav>
-    <p class="sidebar-note">Навчальний проєкт<br>Етап 2 · Одне зображення</p>
+    <p class="sidebar-note">Навчальний проєкт<br>Етап 3 · Особиста історія</p>
   </aside>
   <main id="workspace">
     <header><p class="eyebrow">ВАША ЦИФРОВА МАЙСТЕРНЯ</p><h1>Простір для ваших зображень.</h1><p class="intro">Завантажуйте, перетворюйте та зберігайте. Крок за кроком будуємо студію обробки фото.</p></header>
@@ -20,6 +20,20 @@
       <div><h2 id="connection-title">З’єднання з backend</h2><p id="connection-status" role="status" aria-live="polite">Перевіряємо з’єднання…</p><p class="instance">Сервер: <code id="instance-id">—</code></p></div>
       <button type="button" id="check-connection">Перевірити зв’язок</button>
     </section>
+    <section class="card account" aria-labelledby="account-title">
+      <h2 id="account-title">Ваш обліковий запис</h2>
+      <form id="auth-form">
+        <label for="username">Ім’я користувача</label>
+        <input id="username" name="username" autocomplete="username" pattern="[A-Za-z0-9_-]{3,40}" minlength="3" maxlength="40" required aria-describedby="auth-hint">
+        <label for="password">Пароль</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required>
+        <p id="auth-hint" class="hint">Ім’я: 3–40 латинських літер, цифр, _ або -. Пароль: 10–128 символів.</p>
+        <div class="account-actions"><button type="submit" value="login">Увійти</button><button type="submit" value="register">Створити акаунт</button></div>
+      </form>
+      <div id="signed-in" hidden><p id="current-user"></p><button id="logout" type="button">Вийти</button></div>
+      <p id="auth-status" role="status" aria-live="polite">Увійдіть або створіть акаунт, щоб обробляти фото й зберігати результати.</p>
+    </section>
+    <div id="protected-workspace" hidden>
     <form id="resize-form" class="workspace-grid" aria-busy="false">
       <section class="card" aria-labelledby="upload-title">
         <p class="eyebrow">01 / ЗОБРАЖЕННЯ</p><h2 id="upload-title">Почнімо з файлів</h2>
@@ -46,10 +60,16 @@
     </form>
     <p id="processing-status" class="processing-status" role="status" aria-live="polite">Оберіть фото, щоб почати.</p>
     <section id="result-panel" class="card result" aria-labelledby="result-title" hidden>
-      <div><p class="eyebrow">03 / РЕЗУЛЬТАТ</p><h2 id="result-title">Ваше зображення готове</h2><p id="result-info"></p><a id="download-result" class="download-link" download="resized-image.png">Завантажити PNG</a><p class="hint">Результат доступний у цій вкладці до наступної обробки або перезавантаження сторінки. Збережіть його на свій Mac.</p></div>
+      <div><p class="eyebrow">03 / РЕЗУЛЬТАТ</p><h2 id="result-title">Ваше зображення готове</h2><p id="result-info"></p><a id="download-result" class="download-link" download="resized-image.png">Завантажити PNG</a><p class="hint">Результат збережений у вашій історії. Його можна завантажити повторно після входу.</p></div>
       <img id="result-preview" alt="Результат зміни розміру зображення">
     </section>
-    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Наступні етапи — користувачі, історія та фонова черга з прогресом і скасуванням. Головна ціль — Nginx, два API-сервери й два обчислювальні workers.</p></section>
+    <section class="card history" aria-labelledby="history-title">
+      <h2 id="history-title">Моя історія</h2><p class="hint">До 20 задач, включно з невдалими. Видаліть старі задачі, щоб звільнити місце. Результат однієї задачі — до 20 MiB.</p>
+      <button id="refresh-history" type="button">Оновити історію</button>
+      <p id="history-status" role="status" aria-live="polite"></p><ul id="job-list"></ul>
+    </section>
+    </div>
+    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Обробка поки відбувається під час HTTP-запиту. Наступний етап — фонова черга з прогресом і скасуванням. Далі — Nginx, два API-сервери й два обчислювальні workers.</p></section>
   </main>
 </body>
 </html>

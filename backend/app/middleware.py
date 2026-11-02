@@ -10,7 +10,7 @@ class UploadBodyLimitMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["path"] != "/api/images/resize":
+        if scope["type"] != "http" or scope["path"] not in ("/api/images/resize", "/api/auth/login", "/api/auth/register"):
             await self.app(scope, receive, send)
             return
 
@@ -21,7 +21,8 @@ class UploadBodyLimitMiddleware:
             await JSONResponse({"detail": "Некоректний Content-Length."}, status_code=400)(scope, receive, send)
             return
 
-        if declared_size > MAX_BODY_BYTES:
+        limit = MAX_BODY_BYTES if scope["path"] == "/api/images/resize" else 16 * 1024
+        if declared_size > limit:
             await self.reject(scope, receive, send)
             return
 
@@ -33,7 +34,7 @@ class UploadBodyLimitMiddleware:
             if message["type"] == "http.disconnect":
                 return
             chunk = message.get("body", b"")
-            if len(body) + len(chunk) > MAX_BODY_BYTES:
+            if len(body) + len(chunk) > limit:
                 await self.reject(scope, receive, send)
                 return
             body.extend(chunk)
@@ -54,7 +55,7 @@ class UploadBodyLimitMiddleware:
     @staticmethod
     async def reject(scope, receive, send):
         response = JSONResponse(
-            {"detail": "Запит завеликий. Оберіть одне фото до 10 MiB."},
+            {"detail": "Запит завеликий."},
             status_code=413,
         )
         await response(scope, receive, send)

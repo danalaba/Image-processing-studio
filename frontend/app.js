@@ -51,6 +51,124 @@ const downloadLink = document.querySelector("#download-result");
 const maxFileBytes = 10 * 1024 * 1024;
 let resultUrl = null;
 let busy = false;
+let token = sessionStorage.getItem("studio-token");
+
+async function api(path, options = {}) {
+  const requestToken = token;
+  const headers = new Headers(options.headers);
+  if (requestToken) headers.set("Authorization", `Bearer ${requestToken}`);
+  const response = await fetch(path, { ...options, headers, cache: "no-store" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401 && token === requestToken) setAccount(null);
+    throw new Error(typeof data.detail === "string" ? data.detail : "Перевірте введені дані та спробуйте ще раз.");
+  }
+  return response;
+}
+
+function setAccount(user) {
+  document.querySelector("#auth-form").hidden = Boolean(user);
+  document.querySelector("#signed-in").hidden = !user;
+  document.querySelector("#protected-workspace").hidden = !user;
+  document.querySelector("#current-user").textContent = user ? `Ви увійшли як ${user.username}` : "";
+  document.querySelector("#auth-status").textContent = user ? "Вхід виконано. Історія доступна лише вам. Сесія діє 24 години." : "Увійдіть або створіть акаунт, щоб продовжити.";
+  if (!user) {
+    token = null;
+    sessionStorage.removeItem("studio-token");
+    clearResult();
+    fileInput.value = "";
+    fileInfo.textContent = "Файл ще не обрано.";
+    document.querySelector("#job-list").replaceChildren();
+  }
+}
+
+const statusNames = { RUNNING: "Обробляється", COMPLETED: "Завершено", FAILED: "Помилка" };
+async function loadHistory() {
+  const requestToken = token;
+  const data = await (await api("/api/jobs")).json();
+  if (token !== requestToken) return;
+  const list = document.querySelector("#job-list");
+  list.replaceChildren();
+  document.querySelector("#history-status").textContent = `Збережено ${data.jobs.length} із ${data.limit} задач.`;
+  for (const job of data.jobs) {
+    const row = document.createElement("li");
+    const text = document.createElement("p");
+    text.textContent = `${new Date(job.created_at).toLocaleString("uk-UA")} · ${statusNames[job.status] || job.status} · рамка ${job.target_width}×${job.target_height}`;
+    row.append(text);
+    if (job.error) {
+      const error = document.createElement("p");
+      error.textContent = job.error;
+      row.append(error);
+    }
+    const actions = document.createElement("div");
+    actions.className = "job-actions";
+    function action(label, handler) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try { await handler(); } catch (error) { document.querySelector("#history-status").textContent = error.message; }
+        finally { button.disabled = false; }
+      });
+      actions.append(button);
+    }
+    if (job.status === "COMPLETED") action("Завантажити PNG", async () => {
+      const blob = await (await api(`/api/jobs/${job.id}/result`)).blob();
+      if (token !== requestToken) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "resized-image.png";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    if (job.status !== "RUNNING") action("Видалити", async () => {
+      if (!window.confirm("Видалити цю задачу та її результат?")) return;
+      await api(`/api/jobs/${job.id}`, { method: "DELETE" });
+      clearResult();
+      await loadHistory();
+    });
+    row.append(actions);
+    list.append(row);
+  }
+}
+
+async function refreshHistory() {
+  try { await loadHistory(); }
+  catch (error) { document.querySelector("#history-status").textContent = error.message; }
+}
+document.querySelector("#refresh-history").addEventListener("click", refreshHistory);
+document.querySelector("#auth-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const mode = event.submitter?.value || "login";
+  form.querySelectorAll("button").forEach(button => { button.disabled = true; });
+  try {
+    const response = await api(`/api/auth/${mode}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: form.username.value, password: form.password.value }),
+    });
+    token = (await response.json()).access_token;
+    sessionStorage.setItem("studio-token", token);
+    form.password.value = "";
+    setAccount(await (await api("/api/auth/me")).json());
+    await refreshHistory();
+  } catch (error) { document.querySelector("#auth-status").textContent = error.message; }
+  finally { form.querySelectorAll("button").forEach(button => { button.disabled = false; }); }
+});
+document.querySelector("#logout").addEventListener("click", async () => {
+  try { await api("/api/auth/logout", { method: "POST" }); setAccount(null); }
+  catch (error) { document.querySelector("#auth-status").textContent = error.message; }
+});
+async function restoreAccount() {
+  if (!token) return;
+  try { setAccount(await (await api("/api/auth/me")).json()); await refreshHistory(); }
+  catch (error) { document.querySelector("#auth-status").textContent = error.message; }
+}
+restoreAccount();
 
 function clearResult() {
   resultPanel.hidden = true;
@@ -97,24 +215,19 @@ resizeForm.addEventListener("submit", async (event) => {
   if (!file) return;
 
   const data = new FormData(resizeForm);
+  const requestToken = token;
   clearResult();
   busy = true;
+  document.querySelector("#logout").disabled = true;
   resizeForm.setAttribute("aria-busy", "true");
   resizeForm.querySelectorAll("input, button").forEach(control => { control.disabled = true; });
   showProcessingStatus("Надсилання й обробка зображення…");
 
   try {
     // Content-Type не встановлюємо вручну: браузер додасть multipart boundary.
-    const response = await fetch("/api/images/resize", { method: "POST", body: data });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      let message = typeof errorData.detail === "string" ? errorData.detail : `Помилка сервера (${response.status}).`;
-      if (response.status === 422 && Array.isArray(errorData.detail)) {
-        message = "Перевірте файл і параметри: ширина та висота мають бути цілими числами від 1 до 4096.";
-      }
-      throw new Error(message);
-    }
+    const response = await api("/api/images/resize", { method: "POST", body: data });
     const blob = await response.blob();
+    if (token !== requestToken) return;
     if (blob.type !== "image/png" || blob.size === 0) throw new Error("Сервер повернув некоректний результат.");
     resultUrl = URL.createObjectURL(blob);
     resultPreview.src = resultUrl;
@@ -126,9 +239,11 @@ resizeForm.addEventListener("submit", async (event) => {
     showProcessingStatus(error instanceof TypeError ? "Не вдалося зв’язатися із сервером. Перевірте FastAPI й спробуйте ще раз." : error.message, "status-error");
   } finally {
     busy = false;
+    document.querySelector("#logout").disabled = false;
     resizeForm.setAttribute("aria-busy", "false");
     resizeForm.querySelectorAll("input, button").forEach(control => { control.disabled = false; });
     processButton.disabled = !fileInput.files.length;
+    if (token) await refreshHistory();
   }
 });
 

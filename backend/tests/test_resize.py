@@ -3,6 +3,7 @@ from io import BytesIO
 
 from fastapi.testclient import TestClient
 from PIL import Image
+from support import DatabaseTestCase
 
 from app.image_service import resize_slots
 from app.limits import MAX_BODY_BYTES, MAX_CONCURRENT_RESIZES, MAX_FILE_BYTES
@@ -16,9 +17,7 @@ def image_bytes(fmt="PNG", size=(600, 300), mode="RGB", **save_options):
     return output.getvalue()
 
 
-class ResizeTests(unittest.TestCase):
-    def setUp(self):
-        self.client = TestClient(app)
+class ResizeTests(DatabaseTestCase):
 
     def resize(self, data=None, width="200", height="200", name="photo.png"):
         return self.client.post(

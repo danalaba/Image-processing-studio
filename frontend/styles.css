@@ -48,6 +48,14 @@ input[type="file"]::file-selector-button { font: inherit; padding: 10px 14px; bo
 .download-link { display: inline-block; margin: 16px 0; padding: 11px 16px; border: 1px solid var(--color-navy); border-radius: var(--radius-control); text-decoration: none; font-weight: 650; background: var(--color-navy); color: var(--color-ivory); }
 .download-link:hover { background: var(--color-navy-elevated); }
 #file-info { overflow-wrap: anywhere; }
+.account { margin-bottom: 24px; }
+#auth-form { max-width: 460px; }
+#auth-form input { margin-bottom: 14px; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.history { margin-top: 24px; }
+#job-list { list-style: none; padding: 0; }
+#job-list li { padding: 18px 0; border-top: 1px solid var(--color-outline); overflow-wrap: anywhere; }
+.job-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 @media (max-width: 1050px) { .workspace-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) {
   .sidebar { position: static; width: 100%; padding: 20px 24px; gap: 16px; }

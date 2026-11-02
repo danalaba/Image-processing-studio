@@ -5,12 +5,11 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from support import DatabaseTestCase
 from app.main import app
 
 
-class AppTests(unittest.TestCase):
-    def setUp(self):
-        self.client = TestClient(app)
+class AppTests(DatabaseTestCase):
 
     def test_health_contract(self):
         response = self.client.get("/api/health")
@@ -38,8 +37,8 @@ class AppTests(unittest.TestCase):
         finally:
             importlib.reload(main)
 
-    def test_persistent_jobs_not_implemented_yet(self):
-        self.assertEqual(self.client.post("/api/jobs").status_code, 404)
+    def test_personal_history_starts_empty(self):
+        self.assertEqual(self.client.get("/api/jobs").json(), {"jobs": [], "limit": 20})
 
 
 if __name__ == "__main__":
