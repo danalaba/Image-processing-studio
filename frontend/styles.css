@@ -66,6 +66,11 @@ input[type="file"]::file-selector-button { font: inherit; padding: 10px 14px; bo
 #job-list { list-style: none; padding: 0; }
 #job-list li { padding: 18px 0; border-top: 1px solid var(--color-outline); overflow-wrap: anywhere; }
 .job-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.task-progress { margin: 12px 0 24px; border-top: 3px solid var(--color-burgundy); }
+progress { display: block; width: 100%; height: 12px; border: 0; border-radius: 6px; overflow: hidden; accent-color: var(--color-burgundy); background: var(--color-coconut); margin: 12px 0 18px; }
+progress::-webkit-progress-bar { background: var(--color-coconut); border-radius: 6px; }
+progress::-webkit-progress-value { background: var(--color-burgundy); border-radius: 6px; }
+progress::-moz-progress-bar { background: var(--color-burgundy); border-radius: 6px; }
 @media (max-width: 1050px) { .workspace-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) {
   .sidebar { position: static; width: 100%; padding: 20px 24px; gap: 16px; }

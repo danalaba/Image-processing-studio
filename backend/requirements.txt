@@ -4,3 +4,4 @@ Pillow==12.0.0
 python-multipart==0.0.20
 psycopg[binary]==3.2.9
 argon2-cffi==25.1.0
+celery[redis]==5.5.3

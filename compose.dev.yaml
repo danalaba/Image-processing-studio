@@ -1,0 +1,5 @@
+# Optional ports for Python processes running directly on the host.
+services:
+  redis:
+    ports:
+      - "127.0.0.1:6380:6379"

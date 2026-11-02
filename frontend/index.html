@@ -14,7 +14,7 @@
   <aside class="sidebar">
     <a class="brand" href="/">IPS<span>Image Processing Studio</span></a>
     <nav aria-label="Основна навігація"><a href="#workspace" aria-current="page">Робочий простір</a></nav>
-    <p class="sidebar-note">Навчальний проєкт<br>Етап 3 · Особиста історія</p>
+    <p class="sidebar-note">Навчальний проєкт<br>Етап 4 · Фонова обробка</p>
   </aside>
   <main id="workspace">
     <header><p class="eyebrow">ВАША ЦИФРОВА МАЙСТЕРНЯ</p><h1>Простір для ваших <span>зображень.</span></h1><p class="intro">Завантажуйте, перетворюйте та зберігайте. Крок за кроком будуємо студію обробки фото.</p></header>
@@ -61,6 +61,13 @@
       </section>
     </form>
     <p id="processing-status" class="processing-status" role="status" aria-live="polite">Оберіть фото, щоб почати.</p>
+    <section id="job-progress" class="card task-progress" aria-labelledby="progress-title" hidden>
+      <h2 id="progress-title">Поточна задача</h2>
+      <label id="progress-label" for="progress-bar">У черзі · 0%</label>
+      <progress id="progress-bar" max="100" value="0"></progress>
+      <p class="hint">Відсотки позначають етапи обробки. Скасування застосовується між етапами; поточна операція може потребувати часу для завершення.</p>
+      <button id="cancel-job" type="button">Скасувати задачу</button>
+    </section>
     <section id="result-panel" class="card result" aria-labelledby="result-title" hidden>
       <div><p class="eyebrow">03 / РЕЗУЛЬТАТ</p><h2 id="result-title">Ваше зображення готове</h2><p id="result-info"></p><a id="download-result" class="download-link" download="resized-image.png">Завантажити PNG</a><p class="hint">Результат збережений у вашій історії. Його можна завантажити повторно після входу.</p></div>
       <img id="result-preview" alt="Результат зміни розміру зображення">
@@ -71,7 +78,7 @@
       <p id="history-status" role="status" aria-live="polite"></p><ul id="job-list"></ul>
     </section>
     </div>
-    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Обробка поки відбувається під час HTTP-запиту. Наступний етап — фонова черга з прогресом і скасуванням. Далі — Nginx, два API-сервери й два обчислювальні workers.</p></section>
+    <section class="roadmap" aria-labelledby="next-title"><h2 id="next-title">Що далі?</h2><p>Фото обробляються у фоновій черзі з прогресом і скасуванням. Наступні кроки — пакетна обробка та ZIP, потім Nginx і два API-сервери для балансування запитів.</p></section>
   </main>
 </body>
 </html>

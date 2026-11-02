@@ -5,7 +5,8 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from support import DatabaseTestCase
 
-from app.image_service import resize_slots
+from app.image_service import resize_slots, resize_image
+from fastapi import HTTPException
 from app.limits import MAX_BODY_BYTES, MAX_CONCURRENT_RESIZES, MAX_FILE_BYTES
 from app.main import app
 
@@ -20,11 +21,11 @@ def image_bytes(fmt="PNG", size=(600, 300), mode="RGB", **save_options):
 class ResizeTests(DatabaseTestCase):
 
     def resize(self, data=None, width="200", height="200", name="photo.png"):
-        return self.client.post(
+        return self.finish_job(self.client.post(
             "/api/images/resize",
             files={"file": (name, image_bytes() if data is None else data, "application/octet-stream")},
             data={"width": width, "height": height},
-        )
+        ))
 
     def test_supported_formats_return_real_png_and_keep_ratio(self):
         for fmt in ("JPEG", "PNG", "WEBP"):
@@ -125,9 +126,10 @@ class ResizeTests(DatabaseTestCase):
             for _ in range(MAX_CONCURRENT_RESIZES):
                 self.assertTrue(resize_slots.acquire(blocking=False))
                 acquired += 1
-            response = self.resize()
-            self.assertEqual(response.status_code, 503)
-            self.assertEqual(response.headers["retry-after"], "2")
+            with self.assertRaises(HTTPException) as raised:
+                resize_image(image_bytes(), 200, 200)
+            self.assertEqual(raised.exception.status_code, 503)
+            self.assertEqual(raised.exception.headers["Retry-After"], "2")
         finally:
             for _ in range(acquired):
                 resize_slots.release()

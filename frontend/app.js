@@ -52,6 +52,16 @@ const maxFileBytes = 10 * 1024 * 1024;
 let resultUrl = null;
 let busy = false;
 let token = sessionStorage.getItem("studio-token");
+let pollTimer = null;
+let currentJobId = null;
+let presentedJobId = null;
+let historySignature = "";
+const progressPanel = document.querySelector("#job-progress");
+const progressBar = document.querySelector("#progress-bar");
+const progressLabel = document.querySelector("#progress-label");
+const cancelButton = document.querySelector("#cancel-job");
+const activeStates = new Set(["QUEUED", "RUNNING", "CANCELLING"]);
+const stageNames = { queued: "Очікує в черзі", validating: "Перевірка фото", decoding: "Читання фото", orienting: "Орієнтація", resizing: "Зміна розміру", encoding: "Створення PNG", saving: "Збереження", completed: "Готово", failed: "Помилка", cancelling: "Очікування скасування", cancelled: "Скасовано" };
 
 async function api(path, options = {}) {
   const requestToken = token;
@@ -73,6 +83,12 @@ function setAccount(user) {
   document.querySelector("#current-user").textContent = user ? `Ви увійшли як ${user.username}` : "";
   document.querySelector("#auth-status").textContent = user ? "Вхід виконано. Історія доступна лише вам. Сесія діє 24 години." : "Увійдіть або створіть акаунт, щоб продовжити.";
   if (!user) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+    currentJobId = null;
+    presentedJobId = null;
+    historySignature = "";
+    progressPanel.hidden = true;
     token = null;
     sessionStorage.removeItem("studio-token");
     clearResult();
@@ -82,12 +98,22 @@ function setAccount(user) {
   }
 }
 
-const statusNames = { RUNNING: "Обробляється", COMPLETED: "Завершено", FAILED: "Помилка" };
+const statusNames = { QUEUED: "У черзі", RUNNING: "Обробляється", CANCELLING: "Скасовується", COMPLETED: "Завершено", FAILED: "Помилка", CANCELLED: "Скасовано" };
 async function loadHistory() {
   const requestToken = token;
   const data = await (await api("/api/jobs")).json();
   if (token !== requestToken) return;
   const list = document.querySelector("#job-list");
+  await updateTrackedJob(data.jobs, requestToken);
+  if (token !== requestToken) return;
+  clearTimeout(pollTimer);
+  pollTimer = null;
+  if (token && data.jobs.some(job => activeStates.has(job.status))) {
+    pollTimer = setTimeout(refreshHistory, 1500);
+  }
+  const signature = JSON.stringify(data.jobs);
+  if (historySignature === signature) return;
+  historySignature = signature;
   list.replaceChildren();
   document.querySelector("#history-status").textContent = `Збережено ${data.jobs.length} із ${data.limit} задач.`;
   for (const job of data.jobs) {
@@ -95,6 +121,15 @@ async function loadHistory() {
     const text = document.createElement("p");
     text.textContent = `${new Date(job.created_at).toLocaleString("uk-UA")} · ${statusNames[job.status] || job.status} · рамка ${job.target_width}×${job.target_height}`;
     row.append(text);
+    if (activeStates.has(job.status)) {
+      const state = document.createElement("p");
+      state.textContent = `${stageNames[job.stage] || job.stage} · ${job.progress}%`;
+      const progress = document.createElement("progress");
+      progress.max = 100;
+      progress.value = job.progress;
+      progress.setAttribute("aria-label", `Прогрес задачі: ${job.progress}%`);
+      row.append(state, progress);
+    }
     if (job.error) {
       const error = document.createElement("p");
       error.textContent = job.error;
@@ -125,7 +160,11 @@ async function loadHistory() {
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
-    if (job.status !== "RUNNING") action("Видалити", async () => {
+    if (job.status === "QUEUED" || job.status === "RUNNING") action("Скасувати", async () => {
+      await api(`/api/jobs/${job.id}/cancel`, { method: "POST" });
+      await loadHistory();
+    });
+    if (!activeStates.has(job.status)) action("Видалити", async () => {
       if (!window.confirm("Видалити цю задачу та її результат?")) return;
       await api(`/api/jobs/${job.id}`, { method: "DELETE" });
       clearResult();
@@ -138,7 +177,10 @@ async function loadHistory() {
 
 async function refreshHistory() {
   try { await loadHistory(); }
-  catch (error) { document.querySelector("#history-status").textContent = error.message; }
+  catch (error) {
+    document.querySelector("#history-status").textContent = error.message + " Повторюємо перевірку…";
+    if (token) { clearTimeout(pollTimer); pollTimer = setTimeout(refreshHistory, 5000); }
+  }
 }
 document.querySelector("#refresh-history").addEventListener("click", refreshHistory);
 document.querySelector("#auth-form").addEventListener("submit", async event => {
@@ -208,12 +250,51 @@ fileInput.addEventListener("change", () => {
   showProcessingStatus("Фото обрано. Задайте рамку й натисніть «Обробити зображення».");
 });
 
+async function updateTrackedJob(jobs, requestToken) {
+  const job = jobs.find(item => item.id === currentJobId);
+  if (token !== requestToken) return;
+  if (!job) { progressPanel.hidden = true; return; }
+  progressPanel.hidden = false;
+  progressBar.value = job.progress;
+  progressLabel.textContent = `${statusNames[job.status]} · ${job.progress}% · ${stageNames[job.stage] || job.stage}`;
+  cancelButton.hidden = !activeStates.has(job.status);
+  cancelButton.disabled = job.status === "CANCELLING";
+  cancelButton.textContent = job.status === "CANCELLING" ? "Скасовуємо…" : "Скасувати задачу";
+  if (job.status === "COMPLETED" && presentedJobId !== job.id) {
+    const response = await api(`/api/jobs/${job.id}/result`);
+    const blob = await response.blob();
+    if (token !== requestToken || currentJobId !== job.id) return;
+    if (blob.type !== "image/png" || !blob.size) throw new Error("Некоректний результат.");
+    clearResult();
+    resultUrl = URL.createObjectURL(blob);
+    resultPreview.src = resultUrl;
+    downloadLink.href = resultUrl;
+    resultInfo.textContent = `${job.width} × ${job.height} px · PNG · ${(blob.size / 1024).toFixed(1)} KiB`;
+    resultPanel.hidden = false;
+    presentedJobId = job.id;
+    showProcessingStatus("Готово. Результат можна переглянути й завантажити.", "status-ok");
+  } else if (job.status === "FAILED") {
+    showProcessingStatus(job.error || "Обробка не вдалася.", "status-error");
+  } else if (job.status === "CANCELLED") {
+    showProcessingStatus("Задачу скасовано. Можна створити нову.");
+  }
+}
+
+cancelButton.addEventListener("click", async () => {
+  if (!currentJobId) return;
+  cancelButton.disabled = true;
+  try {
+    await api(`/api/jobs/${currentJobId}/cancel`, { method: "POST" });
+    await refreshHistory();
+  } catch (error) {
+    showProcessingStatus(error.message, "status-error");
+    cancelButton.disabled = false;
+  }
+});
+
 resizeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (busy || !resizeForm.reportValidity()) return;
-  const file = fileInput.files[0];
-  if (!file) return;
-
+  if (busy || !resizeForm.reportValidity() || !fileInput.files[0]) return;
   const data = new FormData(resizeForm);
   const requestToken = token;
   clearResult();
@@ -221,22 +302,19 @@ resizeForm.addEventListener("submit", async (event) => {
   document.querySelector("#logout").disabled = true;
   resizeForm.setAttribute("aria-busy", "true");
   resizeForm.querySelectorAll("input, button").forEach(control => { control.disabled = true; });
-  showProcessingStatus("Надсилання й обробка зображення…");
-
+  showProcessingStatus("Надсилання зображення…");
   try {
-    // Content-Type не встановлюємо вручну: браузер додасть multipart boundary.
-    const response = await api("/api/images/resize", { method: "POST", body: data });
-    const blob = await response.blob();
+    const response = await api("/api/jobs", { method: "POST", body: data });
+    const job = await response.json();
     if (token !== requestToken) return;
-    if (blob.type !== "image/png" || blob.size === 0) throw new Error("Сервер повернув некоректний результат.");
-    resultUrl = URL.createObjectURL(blob);
-    resultPreview.src = resultUrl;
-    downloadLink.href = resultUrl;
-    resultInfo.textContent = `${response.headers.get("X-Image-Width")} × ${response.headers.get("X-Image-Height")} px · PNG · ${(blob.size / 1024).toFixed(1)} KiB`;
-    resultPanel.hidden = false;
-    showProcessingStatus("Готово. Результат можна переглянути й завантажити.", "status-ok");
+    currentJobId = job.id;
+    presentedJobId = null;
+    progressPanel.hidden = false;
+    progressBar.value = 0;
+    progressLabel.textContent = "У черзі · 0%";
+    showProcessingStatus("Задачу прийнято. Статус оновлюється автоматично; можна обрати інше фото.");
   } catch (error) {
-    showProcessingStatus(error instanceof TypeError ? "Не вдалося зв’язатися із сервером. Перевірте FastAPI й спробуйте ще раз." : error.message, "status-error");
+    showProcessingStatus(error instanceof TypeError ? "Не вдалося зв’язатися із сервером." : error.message, "status-error");
   } finally {
     busy = false;
     document.querySelector("#logout").disabled = false;
@@ -248,5 +326,6 @@ resizeForm.addEventListener("submit", async (event) => {
 });
 
 window.addEventListener("beforeunload", () => {
+  clearTimeout(pollTimer);
   if (resultUrl) URL.revokeObjectURL(resultUrl);
 });

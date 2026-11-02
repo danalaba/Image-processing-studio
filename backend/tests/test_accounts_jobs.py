@@ -9,7 +9,9 @@ from PIL import Image
 from support import DatabaseTestCase, PASSWORD
 from app.auth import token_digest
 from app.database import database
-from app.jobs import process_resize
+from app.jobs import create_job
+from app.tasks import process_job
+from fastapi import HTTPException
 from app.limits import MAX_JOBS_PER_USER
 from app.main import app
 
@@ -23,8 +25,8 @@ def photo():
 
 class AccountJobTests(DatabaseTestCase):
     def resize(self, client=None, content=None):
-        return (client or self.client).post("/api/images/resize", files={"file": ("sample.png", photo() if content is None else content)},
-                                           data={"width": "200", "height": "200"})
+        return self.finish_job((client or self.client).post("/api/jobs", files={"file": ("sample.png", photo() if content is None else content)},
+                                           data={"width": "200", "height": "200"}), client)
 
     def user_id(self):
         return self.client.get("/api/auth/me").json()["id"]
@@ -114,7 +116,8 @@ class AccountJobTests(DatabaseTestCase):
         self.assertEqual(self.client.get(f"/api/jobs/{job_id}/result").status_code, 200)
 
     def test_failed_job_recorded_without_result(self):
-        self.assertEqual(self.resize(content=b"not an image").status_code, 400)
+        with patch("app.tasks.resize_image", side_effect=HTTPException(400, "Не вдалося декодувати фото.")):
+            self.assertEqual(self.resize().status_code, 409)
         job = self.client.get("/api/jobs").json()["jobs"][0]
         self.assertEqual(job["status"], "FAILED")
         self.assertTrue(job["finished_at"])
@@ -135,8 +138,8 @@ class AccountJobTests(DatabaseTestCase):
         self.assertEqual(self.client.delete(f"/api/jobs/{job['id']}").status_code, 409)
 
     def test_large_result_is_rejected_and_marked_failed(self):
-        with patch("app.jobs.MAX_RESULT_BYTES", 1):
-            self.assertEqual(self.resize().status_code, 413)
+        with patch("app.tasks.MAX_RESULT_BYTES", 1):
+            self.assertEqual(self.resize().status_code, 409)
         self.assertEqual(self.client.get("/api/jobs").json()["jobs"][0]["status"], "FAILED")
 
     def test_concurrent_admission_does_not_exceed_history_limit(self):
@@ -144,10 +147,10 @@ class AccountJobTests(DatabaseTestCase):
         user_id = self.user_id()
         def attempt(_):
             try:
-                process_resize(user_id, photo(), 200, 200)
-                return 200
+                create_job(user_id, photo(), 200, 200)
+                return 202
             except Exception as error:
                 return getattr(error, "status_code", 500)
         with ThreadPoolExecutor(max_workers=2) as executor:
-            self.assertEqual(sorted(executor.map(attempt, range(2))), [200, 409])
+            self.assertEqual(sorted(executor.map(attempt, range(2))), [202, 409])
         self.assertEqual(len(self.client.get("/api/jobs").json()["jobs"]), MAX_JOBS_PER_USER)

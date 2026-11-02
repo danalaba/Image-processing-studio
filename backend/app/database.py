@@ -54,3 +54,26 @@ def initialize():
             );
             CREATE INDEX IF NOT EXISTS jobs_user_created_idx ON jobs(user_id, created_at DESC);
         """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+        """)
+        if not connection.execute("SELECT 1 FROM schema_migrations WHERE version = 2").fetchone():
+            connection.execute("""
+                ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
+                ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK
+                    (status IN ('QUEUED', 'RUNNING', 'CANCELLING', 'COMPLETED', 'FAILED', 'CANCELLED'));
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100);
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'queued';
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS input_data BYTEA;
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS worker_id TEXT;
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS claim_id UUID;
+                ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dispatched_at TIMESTAMPTZ;
+                UPDATE jobs SET progress = 100, stage = 'completed' WHERE status = 'COMPLETED';
+                UPDATE jobs SET stage = 'failed' WHERE status = 'FAILED';
+                UPDATE jobs SET status = 'FAILED', stage = 'failed', finished_at = now(),
+                    error = 'Обробку попередньої версії було перервано.' WHERE status = 'RUNNING';
+                INSERT INTO schema_migrations(version) VALUES (2);
+            """)

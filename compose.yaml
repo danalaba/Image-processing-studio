@@ -1,4 +1,4 @@
-# Етап 3: один API та PostgreSQL. Черга й балансування — наступні етапи.
+# Етап 4: один API, PostgreSQL, Redis та два фонові workers.
 services:
   db:
     image: postgres:16-alpine
@@ -17,13 +17,42 @@ services:
       retries: 20
   api:
     build: .
-    environment:
+    image: image-processing-studio-app
+    environment: &runtime_environment
       INSTANCE_ID: api-local
       DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/studio
-    depends_on:
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on: &runtime_dependencies
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  worker-1: &worker
+    build: .
+    image: image-processing-studio-app
+    command: ["celery", "-A", "app.queue:celery", "worker", "--loglevel=INFO", "--concurrency=1", "--hostname=worker-1@%h"]
+    environment: *runtime_environment
+    depends_on: *runtime_dependencies
+    init: true
+    stop_grace_period: 70s
+  worker-2:
+    <<: *worker
+    command: ["celery", "-A", "app.queue:celery", "worker", "--loglevel=INFO", "--concurrency=1", "--hostname=worker-2@%h"]
+  scheduler:
+    <<: *worker
+    command: ["celery", "-A", "app.queue:celery", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
 volumes:
   postgres_data:
+  redis_data:
