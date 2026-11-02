@@ -1,4 +1,7 @@
-# Етап 4: один API, PostgreSQL, Redis та два фонові workers.
+# Етап 5: Nginx -> два API; спільні PostgreSQL/Redis та два workers.
+x-app-environment: &runtime_environment
+  DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/studio
+  CELERY_BROKER_URL: redis://redis:6379/0
 services:
   db:
     image: postgres:16-alpine
@@ -15,20 +18,47 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
-  api:
+  api-1: &api
     build: .
     image: image-processing-studio-app
-    environment: &runtime_environment
-      INSTANCE_ID: api-local
-      DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/studio
-      CELERY_BROKER_URL: redis://redis:6379/0
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+    environment:
+      <<: *runtime_environment
+      INSTANCE_ID: api-1
     depends_on: &runtime_dependencies
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+  api-2:
+    <<: *api
+    environment:
+      <<: *runtime_environment
+      INSTANCE_ID: api-2
+  nginx:
+    build: ./nginx
+    image: image-processing-studio-nginx
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8000:8080"
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+    healthcheck:
+      # Local readiness must not go through an inherited HTTP proxy.
+      test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]

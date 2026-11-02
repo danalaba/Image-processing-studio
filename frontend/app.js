@@ -13,7 +13,7 @@ async function checkConnection() {
   const timeout = setTimeout(() => controller.abort(), 5000);
 
   try {
-    // Відносний URL працюватиме і через майбутній Nginx.
+    // Relative URLs keep all requests on the same Nginx entry point.
     const response = await fetch("/api/health", {
       cache: "no-store",
       signal: controller.signal,
@@ -27,7 +27,7 @@ async function checkConnection() {
     statusText.className = "status-ok";
     instanceText.textContent = data.instance_id;
   } catch (error) {
-    statusText.textContent = "Немає зв’язку. Перевірте, чи запущено FastAPI, і спробуйте ще раз.";
+    statusText.textContent = "Немає зв’язку. Перевірте запуск застосунку й спробуйте ще раз.";
     statusText.className = "status-error";
     console.warn("API health check failed:", error);
   } finally {

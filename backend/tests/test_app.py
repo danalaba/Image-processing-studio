@@ -17,6 +17,7 @@ class AppTests(DatabaseTestCase):
         self.assertEqual(response.json()["status"], "ok")
         self.assertTrue(response.json()["instance_id"])
         self.assertEqual(response.json()["service"], "image-processing-studio")
+        self.assertEqual(response.headers["x-instance-id"], response.json()["instance_id"])
 
     def test_frontend_and_assets_are_served(self):
         response = self.client.get("/")
@@ -34,6 +35,7 @@ class AppTests(DatabaseTestCase):
                 reloaded = importlib.reload(main)
                 response = TestClient(reloaded.app).get("/api/health")
                 self.assertEqual(response.json()["instance_id"], "api-test-2")
+                self.assertEqual(response.headers["x-instance-id"], "api-test-2")
         finally:
             importlib.reload(main)
 

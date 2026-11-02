@@ -1,4 +1,4 @@
-"""Етап 4: асинхронна обробка зі статусом, прогресом і скасуванням."""
+"""Етап 5: спільний стан для кількох API та фонових workers."""
 
 import os
 import socket
@@ -28,7 +28,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Image Processing Studio", version="0.4.1", lifespan=lifespan)
+app = FastAPI(title="Image Processing Studio", version="0.5.0", lifespan=lifespan)
 app.add_middleware(UploadBodyLimitMiddleware)
 app.include_router(auth_router)
 app.include_router(jobs_router)
@@ -46,6 +46,7 @@ async def validation_error(request, error):
 @app.middleware("http")
 async def response_headers(request, call_next):
     response = await call_next(request)
+    response.headers["X-Instance-ID"] = INSTANCE_ID
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
     if request.url.path.startswith("/api/"):
