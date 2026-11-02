@@ -1,5 +1,9 @@
 # Image Processing Studio
 
+**Матеріали для захисту:** [сценарій на 8–10 хвилин](docs/DEFENSE.md),
+[схема архітектури](docs/ARCHITECTURE.md), [виступ і відповіді](docs/SPEECH.md),
+[команди](docs/COMMANDS.md), [результати перевірок](docs/VERIFICATION.md).
+
 Навчальна студія обробки фото: акаунти, особиста історія, фонова зміна розміру,
 прогрес і скасування. FastAPI приймає запит, PostgreSQL зберігає задачу та файли,
 Redis передає ID задачі, а два Celery workers виконують обробку Pillow. Nginx розподіляє HTTP-запити між двома незалежними API зі спільною PostgreSQL.

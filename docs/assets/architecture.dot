@@ -1,0 +1,33 @@
+digraph Studio {
+  graph [rankdir=LR, bgcolor="#F0EEE6", pad=0.4, nodesep=0.55, ranksep=0.8,
+         fontname="Arial", fontsize=24, label="Image Processing Studio", labelloc=t];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=15,
+        margin="0.20,0.15", color="#131936", fillcolor="#FBFAF6", fontcolor="#131936", penwidth=1.4];
+  edge [fontname="Arial", fontsize=11, color="#6D706E", fontcolor="#444844", arrowsize=0.7];
+
+  browser [label="Browser\nHTML / CSS / JavaScript"];
+  nginx [label="Nginx\nlocalhost:8000\nHTTP load balancer", fillcolor="#632D3D", color="#632D3D", fontcolor="#FBFAF6"];
+  api1 [label="api-1\nFastAPI", fillcolor="#131936", fontcolor="#FBFAF6"];
+  api2 [label="api-2\nFastAPI", fillcolor="#131936", fontcolor="#FBFAF6"];
+  db [label="PostgreSQL\nusers / sessions / jobs\ninputs / progress / results", shape=cylinder];
+  redis [label="Redis\nCelery broker\njob UUIDs", shape=cylinder, fillcolor="#E9EBD9", color="#4B5409"];
+  worker1 [label="worker-1\nCelery / Pillow\nconcurrency = 1", fillcolor="#4B5409", color="#4B5409", fontcolor="#FBFAF6"];
+  worker2 [label="worker-2\nCelery / Pillow\nconcurrency = 1", fillcolor="#4B5409", color="#4B5409", fontcolor="#FBFAF6"];
+  scheduler [label="Scheduler\nCelery beat\nevery 5 s", color="#632D3D"];
+
+  { rank=same; api1; api2; scheduler; }
+  { rank=same; db; redis; }
+  { rank=same; worker1; worker2; }
+  browser -> nginx [dir=both, label="HTTP"];
+  nginx -> api1 [dir=both];
+  nginx -> api2 [dir=both];
+  api1 -> db [dir=both, label="shared state"];
+  api2 -> db [dir=both];
+  api1 -> redis [label="job ID"];
+  api2 -> redis [label="job ID"];
+  scheduler -> redis [style=dashed, label="dispatch check"];
+  redis -> worker1 [label="job ID"];
+  redis -> worker2 [label="job ID"];
+  db -> worker1 [dir=both, label="inputs / results"];
+  db -> worker2 [dir=both, label="progress / cancel"];
+}
