@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Image Processing Studio</title>
+  <link rel="preload" href="/static/fonts/CormorantGaramond.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/Manrope.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/theme.css">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
@@ -15,7 +17,7 @@
     <p class="sidebar-note">Навчальний проєкт<br>Етап 3 · Особиста історія</p>
   </aside>
   <main id="workspace">
-    <header><p class="eyebrow">ВАША ЦИФРОВА МАЙСТЕРНЯ</p><h1>Простір для ваших зображень.</h1><p class="intro">Завантажуйте, перетворюйте та зберігайте. Крок за кроком будуємо студію обробки фото.</p></header>
+    <header><p class="eyebrow">ВАША ЦИФРОВА МАЙСТЕРНЯ</p><h1>Простір для ваших <span>зображень.</span></h1><p class="intro">Завантажуйте, перетворюйте та зберігайте. Крок за кроком будуємо студію обробки фото.</p></header>
     <section class="connection card" aria-labelledby="connection-title">
       <div><h2 id="connection-title">З’єднання з backend</h2><p id="connection-status" role="status" aria-live="polite">Перевіряємо з’єднання…</p><p class="instance">Сервер: <code id="instance-id">—</code></p></div>
       <button type="button" id="check-connection">Перевірити зв’язок</button>

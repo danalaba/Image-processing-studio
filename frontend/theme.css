@@ -1,16 +1,34 @@
-/* Image Processing Studio — starter theme, adapt to existing CSS architecture. */
+/* Image Processing Studio — olive, navy and burgundy. */
+@font-face {
+  font-family: "Cormorant Garamond";
+  src: url("/static/fonts/CormorantGaramond.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("/static/fonts/Manrope.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
 :root {
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-body: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --color-navy: #131936;
   --color-navy-elevated: #202849;
-  --color-rose-gold: #B77E72;
+  --color-burgundy: #632D3D;
+  --color-burgundy-hover: #4B1D2B;
   --color-coconut: #F0EEE6;
   --color-olive: #4B5409;
-  --color-plum: #29101F;
+  --color-olive-hover: #3B4307;
+  --color-olive-soft: #E9EBD9;
   --color-ivory: #FBFAF6;
   --color-ink: #1D2336;
   --color-muted-light: #DDDCD9;
   --color-outline: #DAD7D0;
   --color-error: #A73542;
-  --radius-card: 16px;
-  --radius-control: 12px;
+  --radius-card: 14px;
+  --radius-control: 8px;
 }

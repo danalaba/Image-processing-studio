@@ -1,16 +1,16 @@
 # Image Processing Studio — visual identity
 
 ## Direction
-Luxury minimalism × modern creative studio. The UI must feel refined, clean, professional, and highly usable. References supplied by the user: five Pantone-inspired images depicting blueberries/navy, rose-gold metal, coconut-white textures, olive fruit, and dark purple/plum. Reference images are mood/color inspiration, **not** backgrounds to copy or assets licensed for redistribution.
+Luxury minimalism × modern creative studio. The UI must feel refined, clean, professional, and highly usable. The user updated the direction to olive, dark navy and burgundy, with expressive display serif typography inspired by the supplied New York and display-font references. Reference images are mood/color inspiration, **not** backgrounds or font files licensed for redistribution.
 
 ## Color tokens (approximate screen-friendly interpretations, not official Pantone conversions)
 | Role | Name | Hex |
 |---|---|---|
 | Primary dark surface | Neon Navy | `#131936` |
-| Accent | Rose Gold | `#B77E72` |
+| Primary action / display accent | Burgundy | `#632D3D` |
 | Light base | Coconut Milk | `#F0EEE6` |
-| Secondary accent | Olive Green | `#4B5409` |
-| Deep secondary | Potent Purple | `#29101F` |
+| Primary processing action / active navigation | Olive Green | `#4B5409` |
+| Olive light surface | Olive Soft | `#E9EBD9` |
 | Navy hover/lighter surface | Navy Elevated | `#202849` |
 | Light card | Soft Ivory | `#FBFAF6` |
 | Dark text on light | Ink | `#1D2336` |
@@ -19,12 +19,13 @@ Luxury minimalism × modern creative studio. The UI must feel refined, clean, pr
 
 ## Application rules
 - Default to a clean, **light work canvas** in Coconut Milk/Soft Ivory, with a strong Neon Navy left sidebar/topbar. This lets photographs remain the visual focus.
-- Rose Gold for primary buttons, progress bars, active selection highlights, and focus rings; ensure readable contrast with dark text and accessible control states.
-- Olive Green reserved for success/completed labels and small data accents; Potent Purple for secondary cards, charts, or important dark accents, not broad random decorations.
+- Burgundy for account actions, headline accents and focus rings. Olive for processing/download actions, active navigation, upload/connection surfaces and completed labels. Navy anchors the sidebar and secondary controls. Ivory text on dark controls; dark text on pale surfaces.
+- Rose Gold and Potent Purple are superseded by the user's new palette. Theme tokens in `frontend/theme.css` remain the source of truth.
 - Avoid gradients, metallic effects, textures, photos-as-background, and Pantone branding throughout the functional dashboard unless deliberately requested.
-- Typography: modern neutral sans-serif, e.g. system UI / Inter if available; sensible typography hierarchy, generous spacing, rounded corners 12–16px, restrained shadow.
+- Typography: locally hosted Cormorant Garamond variable (300–700) for headings/IPS and Manrope variable (200–800) for body text and controls. Both include the complete Ukrainian alphabet. Use `--font-display` and `--font-body`; fall back to Georgia and system sans-serif. Large display headings, readable form labels, generous spacing and restrained corners.
+- These are open-source alternatives inspired by the references, not the exact New York/other pictured fonts. Exact originals require the user's font files and appropriate licenses. Do not guess download sources for commercial fonts. Preserve the OFL licenses bundled in `frontend/fonts`.
 - Screens: upload workspace (drag & drop), processing settings, job progress/status, history, result download, login, and admin monitoring. Responsive desktop/mobile layouts.
-- States: QUEUED neutral, RUNNING Rose Gold, COMPLETED Olive, FAILED error red with accessible contrast, CANCELLED muted neutral. Never depend on color alone.
+- States: QUEUED neutral, RUNNING Burgundy, COMPLETED Olive, FAILED error red with accessible contrast, CANCELLED muted neutral. Never depend on color alone.
 - Use actual text labels and icons for clarity. High-contrast accessible form controls and visible keyboard focus.
 
 ## Suggested layout
